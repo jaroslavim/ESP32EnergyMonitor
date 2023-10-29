@@ -239,3 +239,7 @@ MQTT integration is disabled by default. To enable, uncomment the lines in the y
 - [Measure AC voltage with ZMPT101B and ESP8266 12E](https://www.hackster.io/SurtrTech/measure-ac-voltage-with-zmpt101b-and-esp8266-12e-24e367)
 - [ESP32 ADC – Read Analog Values with Arduino IDE](https://randomnerdtutorials.com/esp32-adc-analog-read-arduino-ide/)
 - [Installing ESP32 libraries on Arduino IDE 2.0](https://randomnerdtutorials.com/installing-esp32-arduino-ide-2-0/)
+
+
+### My board:
+![Parts and final assembly](images/m432g_2.jpg)
