@@ -1,0 +1,541 @@
+# Platform settings
+esphome:
+  name: esp32emon
+  name_add_mac_suffix: true
+  includes:
+    - emonlib/EmonLib.h
+    - emonlib/EmonLib.cpp
+    - esp32emon.h
+  project:
+    name: danpeig.esp32emon
+    version: "1.5.0"
+
+# Board configuration
+esp32:
+  board: ttgo-t1
+  framework:
+    type: arduino
+
+# Sets up Bluetooth LE (Only on ESP32) to allow the user
+# to provision wifi credentials to the device.
+esp32_improv:
+  authorizer: none
+
+# Sets up the improv via serial client for Wi-Fi provisioning
+improv_serial:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+# Enable OTA updates
+ota:
+  password: ota_password
+
+# Wifi configuration
+wifi:
+  networks:
+    # Main network
+    - ssid: WifiZdarma
+      password: Za500NaRuku
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp32EnergyMeter"
+    password: wifi_ap_password
+
+captive_portal:
+
+# MQTT Integration
+#mqtt:
+#  broker: !secret mqtt_broker
+#  port: !secret mqtt_port
+#  username: !secret mqtt_user
+#  password: !secret mqtt_password
+#  discovery: false #We are using the default API for Home Assistant discovery, no need for MQTT
+
+# Timers configuration
+time:
+  - platform: sntp
+    id: sntp_time1
+    on_time:
+      # Every Month at specified day
+      - seconds: 0
+        minutes: 0
+        hours: 0
+        days_of_month: 1
+        then:
+          - sensor.integration.reset: total_energy_month #Reset power integrator
+      # Every Week at specified day
+      - seconds: 0
+        minutes: 0
+        hours: 0
+        days_of_week: MON
+        then:
+          - sensor.integration.reset: total_energy_week #Reset power integrator
+      # Every Day at specified hour
+      - seconds: 0
+        minutes: 0
+        hours: 0
+        then:
+          - sensor.integration.reset: total_energy_day #Reset power integrator
+
+button:
+  - platform: restart
+    name: "Reboot energy monitor"
+  - platform: safe_mode
+    name: "Reboot energy monitor in Safe Mode"
+
+sensor:
+  #Custom sensors from EMon
+  - platform: custom
+    lambda: |-
+      auto my_sensor = new MyPowerSensor();
+      App.register_component(my_sensor);
+
+      // 1-Phase - - uncomment only the following line for 1 phase measurements
+      //return {my_sensor->realpower_sensor1, my_sensor->apparentpower_sensor1, my_sensor->powerfactor_sensor1, my_sensor->supplyvoltage_sensor1, my_sensor->current_sensor1, my_sensor->realpower_sensor_total, my_sensor->apparentpower_sensor_total, my_sensor->current_sensor_total};
+
+      // 2-Phases - uncomment only the following line for 2 phase measurements
+      //return {my_sensor->realpower_sensor1, my_sensor->apparentpower_sensor1, my_sensor->powerfactor_sensor1, my_sensor->supplyvoltage_sensor1, my_sensor->current_sensor1, my_sensor->realpower_sensor2, my_sensor->apparentpower_sensor2, my_sensor->powerfactor_sensor2, my_sensor->supplyvoltage_sensor2, my_sensor->current_sensor2, my_sensor->realpower_sensor_total, my_sensor->apparentpower_sensor_total, my_sensor->current_sensor_total};
+
+      // 3-Phases - uncomment only the following line for 3 phase measurements
+      return {my_sensor->realpower_sensor1, my_sensor->apparentpower_sensor1, my_sensor->powerfactor_sensor1, my_sensor->supplyvoltage_sensor1, my_sensor->current_sensor1, my_sensor->realpower_sensor2, my_sensor->apparentpower_sensor2, my_sensor->powerfactor_sensor2, my_sensor->supplyvoltage_sensor2, my_sensor->current_sensor2, my_sensor->realpower_sensor3, my_sensor->apparentpower_sensor3, my_sensor->powerfactor_sensor3, my_sensor->supplyvoltage_sensor3, my_sensor->current_sensor3, my_sensor->realpower_sensor_total, my_sensor->apparentpower_sensor_total, my_sensor->current_sensor_total};
+    sensors:
+      #Phase 1 sensors
+      - name: "Real Power P1"
+        id: real_power_1
+        device_class: "power"
+        unit_of_measurement: W
+        state_class: "measurement"
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }
+      - name: "Apparent Power P1"
+        id: apparent_power_1
+        device_class: "apparent_power"
+        unit_of_measurement: VA
+        state_class: "measurement"
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }
+      - name: "Power Factor P1"
+        id: power_factor_1
+        device_class: "power_factor"
+        state_class: "measurement"
+        accuracy_decimals: 2
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }        
+      - name: "Voltage P1"
+        device_class: "voltage"
+        id: voltage_1
+        unit_of_measurement: V
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }   
+      - name: "Current P1"
+        device_class: "current"
+        id: current_1
+        unit_of_measurement: A
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }   
+
+        #Phase 2 sensors
+      - name: "Real Power P2"
+        id: real_power_2
+        device_class: "power"
+        unit_of_measurement: W
+        state_class: "measurement"
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }   
+      - name: "Apparent Power P2"
+        id: apparent_power_2
+        device_class: "apparent_power"
+        unit_of_measurement: VA
+        state_class: "measurement"
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }   
+      - name: "Power Factor P2"
+        id: power_factor_2
+        device_class: "power_factor"
+        state_class: "measurement"
+        accuracy_decimals: 2
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }   
+      - name: "Voltage P2"
+        id: voltage_2
+        device_class: "voltage"
+        unit_of_measurement: V
+        accuracy_decimals: 1 
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }   
+      - name: "Current P2"
+        id: current_2
+        device_class: "current"
+        unit_of_measurement: A
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }   
+
+       #Phase 3 sensors
+      - name: "Real Power P3"
+        id: real_power_3
+        device_class: "power"
+        unit_of_measurement: W
+        state_class: "measurement"
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }   
+      - name: "Apparent Power P3"
+        id: apparent_power_3
+        device_class: "apparent_power"
+        unit_of_measurement: VA
+        state_class: "measurement"
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }   
+      - name: "Power Factor P3"
+        id: power_factor_3
+        device_class: "power_factor"
+        state_class: "measurement"
+        accuracy_decimals: 2
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }   
+      - name: "Voltage P3"
+        id: voltage_3
+        device_class: "voltage"
+        unit_of_measurement: V
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }   
+      - name: "Current P3"
+        id: current_3
+        device_class: "current"
+        unit_of_measurement: A
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }  
+
+      #Total sensors
+      - name: "Total Real Power"
+        id: "real_power_sensor_total"
+        device_class: "power"
+        state_class: "measurement"
+        unit_of_measurement: W
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }
+      - name: "Total Apparent Power"
+        device_class: "apparent_power"
+        state_class: "measurement"
+        unit_of_measurement: VA
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }
+      - name: "Total Current"
+        device_class: "current"
+        state_class: "measurement"
+        unit_of_measurement: A
+        accuracy_decimals: 1
+        internal: false
+        filters:
+          - lambda: |-
+              //Avoid corrupting integration sensors
+              if(!isinf(x) && !isnan(x) && x >= 0 && x <= 10e6)
+                {
+                return x;
+                }
+              else
+                {
+                return 0;
+                }
+
+  - platform: integration
+    name: "Daily Consumption"
+    id: "total_energy_day"
+    sensor: real_power_sensor_total
+    time_unit: h
+    device_class: "energy"
+    state_class: "total_increasing"
+    unit_of_measurement: kWh
+    accuracy_decimals: 2
+    restore: false #If true, save the reading to the flash memory to prevent data loss in case of power loss
+    filters:
+      - multiply: 0.001
+
+  - platform: integration
+    name: "Weekly Consumption"
+    id: "total_energy_week"
+    sensor: real_power_sensor_total
+    time_unit: h
+    device_class: "energy"
+    state_class: "total_increasing"
+    unit_of_measurement: kWh
+    accuracy_decimals: 2
+    restore: false #If true, save the reading to the flash memory to prevent data loss in case of power loss
+    filters:
+      - multiply: 0.001
+
+  - platform: integration
+    name: "Monthly Consumption"
+    id: "total_energy_month"
+    sensor: real_power_sensor_total
+    time_unit: h
+    device_class: "energy"
+    state_class: "total_increasing"
+    unit_of_measurement: kWh
+    accuracy_decimals: 2
+    restore: false #If true, save the reading to the flash memory to prevent data loss in case of power loss
+    filters:
+      - multiply: 0.001
+
+  # Wifi signal sensors
+  - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
+    name: "WiFi signal dB"
+    id: wifi_signal_db
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+  - platform: copy # Reports the WiFi signal strength in %
+    source_id: wifi_signal_db
+    device_class: ""
+    name: "WiFi signal"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
+    entity_category: "diagnostic"
+
+# Other information
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: ESP32 IP Address
+    ssid:
+      name: ESP32 SSID
+
+# Display configuration entry
+
+font:
+  - file: 'fonts/slkscr.ttf'
+    id: font1
+    size: 10
+
+  - file: 'fonts/BebasNeue-Regular.ttf'
+    id: font2
+    size: 48
+
+  - file: 'fonts/Arial.ttf'
+    id: font3
+    size: 14
+
+  - file: 'fonts/BebasNeue-Regular.ttf'
+    id: font4
+    size: 32
+
+i2c:
+  sda: 4
+  scl: 15
+
+display:
+  - platform: ssd1306_i2c
+    model: "SSD1306 128x64"
+    id: "my_display"
+    reset_pin: 16
+    address: 0x3C
+    pages:
+      - id: page1
+        lambda: |-
+          it.printf(0, 0, id(font3), TextAlign::TOP_CENTER, "Obecné");
+          it.printf(14, 0, id(font3), TextAlign::BASELINE_LEFT, "Wifi Signál: %.2fdb", id(wifi_signal_db));
+          it.strftime(28, 40, id(font3), TextAlign::BASELINE_LEFT, "Čas: %H:%M", id(sntp_time1).now());
+
+      - id: page2
+        lambda: |-
+          it.printf(0, 0, id(font3), TextAlign::BASELINE_LEFT, "V1: %.2fV I1:%.2fV", id(voltage_1),id(current_1));
+          it.printf(32, 0, id(font3), TextAlign::BASELINE_LEFT, "V2: %.2fV I2:%.2fV", id(voltage_2),id(current_2));
+          it.printf(64, 0, id(font3), TextAlign::BASELINE_LEFT, "V3: %.2fV I3:%.2fV", id(voltage_3),id(current_3));      
+
+      - id: page3
+        lambda: |-
+          it.printf(64, 0, id(font3), TextAlign::TOP_CENTER, "Dnešní spotřeba: %.2fkWh", id(total_energy_day));
+    
+interval:
+  - interval: 3s
+    then:
+      - display.page.show_next: my_display
+      - component.update: my_display
